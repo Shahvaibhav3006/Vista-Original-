@@ -1,0 +1,8 @@
+{
+  "name": "Remix VISTA — Don\u0027t just visit a city. Play it.",
+  "description": "VISTA — Don\u0027t just visit a city. Play it. A gamified cultural tourism adventure across India.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 40 60% 98%;
+    --foreground: 213 18% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 213 18% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 18% 14%;
+    --primary: 7 71% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 30% 94%;
+    --secondary-foreground: 213 18% 14%;
+    --muted: 40 24% 95%;
+    --muted-foreground: 218 14% 41%;
+    --accent: 32 95% 44%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 12% 90%;
+    --input: 30 12% 90%;
+    --ring: 7 71% 58%;
+    --radius: 16px;
+    --font-heading: "Outfit", ui-sans-serif, system-ui, sans-serif;
+    --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+    --qt-canvas: #fdfbf7;
+    --qt-surface: #ffffff;
+    --qt-ink: #1e242b;
+    --qt-ink-2: #5a6578;
+    --qt-accent: #e05a47;
+    --qt-accent-2: #d97706;
+    --qt-map: #f4ece1;
+    --qt-map-line: #e2d6c5;
+    --qt-border: #1e242b14;
+    --state-accent: #e05a47;
+    --state-accent-2: #d97706;
+    --state-ink: #1e242b;
+  }
+
+  * {
+    border-color: var(--qt-border);
+    scrollbar-color: rgba(30, 36, 43, 0.25) transparent;
+    scrollbar-width: thin;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background-color: var(--qt-canvas);
+    color: var(--qt-ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  #root {
+    min-height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Sleek modern scrollbars for mouse & trackpad users */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(30, 36, 43, 0.22);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(30, 36, 43, 0.4);
+  }
+
+  img, svg, video, canvas, audio, iframe, embed, object {
+    max-width: 100%;
+  }
+
+  p, h1, h2, h3, h4, h5, h6, span, a, button {
+    overflow-wrap: break-word;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: var(--qt-accent);
+    color: #ffffff;
+  }
+}
+
+.qt-card {
+  background: var(--qt-surface);
+  border: 1px solid var(--qt-border);
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(30, 36, 43, 0.06);
+}
+
+.qt-pill {
+  border: 1px solid var(--qt-border);
+  background: var(--qt-surface);
+  border-radius: 9999px;
+}
+
+.qt-tap {
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.qt-tap:active {
+  transform: scale(0.97);
+}
+
+.qt-map-canvas {
+  background-color: var(--qt-map);
+  background-image:
+    radial-gradient(circle at 20% 30%, transparent 38px, var(--qt-map-line) 39px, transparent 40px),
+    radial-gradient(circle at 70% 60%, transparent 60px, var(--qt-map-line) 61px, transparent 62px),
+    radial-gradient(circle at 40% 80%, transparent 48px, var(--qt-map-line) 49px, transparent 50px);
+  background-size: 220px 220px, 320px 320px, 280px 280px;
+}
+
+.qt-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.qt-no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.qt-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 12px);
+}
