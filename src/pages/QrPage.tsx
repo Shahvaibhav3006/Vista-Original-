@@ -16,7 +16,7 @@ import { playTap, playSuccess } from "../utils/audio";
 
 export const QrPage: React.FC = () => {
   const navigate = useNavigate();
-  const { destination, addXp, addBadge, badges, unlockSecret, redeemQrCode } = useGame();
+  const { destination, addXp, addBadge, badges, unlockSecret } = useGame();
   const [inputCode, setInputCode] = useState("");
   const [redeemedPartner, setRedeemedPartner] = useState<Partner | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -71,9 +71,6 @@ export const QrPage: React.FC = () => {
     if (!badges.includes("Quest Partner")) {
       addBadge("Quest Partner");
     }
-    
-    // Sync to backend
-    redeemQrCode(clean);
   };
 
   const handleSimulateScan = () => {

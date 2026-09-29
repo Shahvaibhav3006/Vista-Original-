@@ -11,7 +11,6 @@ import {
   LogIn
 } from "lucide-react";
 import { useGame } from "../context/GameContext";
-import { api } from "../lib/api";
 import { playTap, playSuccess } from "../utils/audio";
 
 interface DemoTeam {
@@ -34,60 +33,37 @@ export const FriendsPage: React.FC = () => {
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [copiedCode, setCopiedCode] = useState(false);
 
-  const handleCreateTeam = async () => {
+  const handleCreateTeam = () => {
     playTap();
     const rawName = teamNameInput.trim() || "Heritage Squad";
-    
-    if (!user.isGuest) {
-      try {
-        const newTeam = await api.createTeam(rawName);
-        setTeam(JSON.stringify({ id: newTeam.id, name: newTeam.name, code: newTeam.join_code, members: [user.name] }));
-        playSuccess();
-      } catch (err) {
-        console.error('Failed to create team', err);
-      }
-    } else {
-      const randomCode =
-        rawName.slice(0, 3).toUpperCase() + Math.floor(100 + Math.random() * 900);
-      setTeam(JSON.stringify({ name: rawName, code: randomCode, members: [user.name] }));
-      playSuccess();
-    }
+    const randomCode =
+      rawName.slice(0, 3).toUpperCase() + Math.floor(100 + Math.random() * 900);
+    setTeam(JSON.stringify({ name: rawName, code: randomCode, members: [user.name] }));
+    playSuccess();
   };
 
-  const handleJoinTeam = async (codeToJoin: string) => {
+  const handleJoinTeam = (codeToJoin: string) => {
     playTap();
     const clean = codeToJoin.trim().toUpperCase();
-    
-    if (!user.isGuest) {
-      try {
-        const joined = await api.joinTeam(clean);
-        // We'd ideally fetch members here too, but just set basic for now
-        setTeam(JSON.stringify({ id: joined.team_id, name: "Your Squad", code: clean, members: [user.name, "Squad Mate"] }));
-        playSuccess();
-      } catch (err) {
-        console.error('Failed to join team', err);
-      }
+    const demo = DEMO_TEAMS.find((t) => t.code.toUpperCase() === clean);
+    if (demo) {
+      setTeam(
+        JSON.stringify({
+          name: demo.name,
+          code: demo.code,
+          members: [user.name, "Aarav", "Meera"]
+        })
+      );
     } else {
-      const demo = DEMO_TEAMS.find((t) => t.code.toUpperCase() === clean);
-      if (demo) {
-        setTeam(
-          JSON.stringify({
-            name: demo.name,
-            code: demo.code,
-            members: [user.name, "Aarav", "Meera"]
-          })
-        );
-      } else {
-        setTeam(
-          JSON.stringify({
-            name: "Explorer Squad",
-            code: clean,
-            members: [user.name, "Squad Mate"]
-          })
-        );
-      }
-      playSuccess();
+      setTeam(
+        JSON.stringify({
+          name: "Explorer Squad",
+          code: clean,
+          members: [user.name, "Squad Mate"]
+        })
+      );
     }
+    playSuccess();
   };
 
   let activeTeamData: { name: string; code: string; members: string[] } | null = null;
@@ -167,15 +143,8 @@ export const FriendsPage: React.FC = () => {
             </div>
 
             <button
-              onClick={async () => {
+              onClick={() => {
                 playTap();
-                if (!user.isGuest && activeTeamData?.id) {
-                  try {
-                    await api.leaveTeam(activeTeamData.id);
-                  } catch (err) {
-                    console.error('Failed to leave team', err);
-                  }
-                }
                 setTeam(null);
               }}
               className="qt-tap text-xs text-red-600 font-bold px-3 py-1.5 rounded-xl border border-red-200 bg-red-50"

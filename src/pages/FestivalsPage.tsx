@@ -2,32 +2,16 @@ import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles, Calendar, PartyPopper } from "lucide-react";
 import { useGame } from "../context/GameContext";
-import { resolveDestination, Festival } from "../data/cities";
-import { api } from "../lib/api";
+import { resolveDestination } from "../data/cities";
 import { playTap } from "../utils/audio";
 
 export const FestivalsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { destination, state, user } = useGame();
-  const [dbFestivals, setDbFestivals] = React.useState<Festival[] | null>(null);
+  const { destination, state } = useGame();
 
   const cityData = useMemo(() => (destination ? resolveDestination(destination) : null), [
     destination
   ]);
-
-  React.useEffect(() => {
-    if (!destination || user.isGuest) return;
-    
-    // Slugify destination for API
-    const slug = destination.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    api.getFestivals(slug)
-      .then(data => {
-        if (data && data.length > 0) {
-          setDbFestivals(data as Festival[]);
-        }
-      })
-      .catch(console.error);
-  }, [destination, user.isGuest]);
 
   if (!cityData) {
     return (
@@ -48,7 +32,7 @@ export const FestivalsPage: React.FC = () => {
   }
 
   const theme = cityData.theme!;
-  const festivals = dbFestivals || cityData.festivals || [];
+  const festivals = cityData.festivals || [];
 
   return (
     <div className="py-4 space-y-4 max-w-2xl mx-auto">

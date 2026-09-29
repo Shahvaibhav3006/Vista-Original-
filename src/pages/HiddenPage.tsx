@@ -8,7 +8,7 @@ import { playTap, playUnlock, playSuccess } from "../utils/audio";
 
 export const HiddenPage: React.FC = () => {
   const navigate = useNavigate();
-  const { destination, addXp, addBadge, badges, unlockSecret, secretUnlocked, revealHiddenClue, discoverHiddenGem } = useGame();
+  const { destination, addXp, addBadge, badges, unlockSecret, secretUnlocked } = useGame();
   const [clueStep, setClueStep] = useState(1);
 
   const cityData = useMemo(() => (destination ? resolveDestination(destination) : null), [
@@ -42,7 +42,6 @@ export const HiddenPage: React.FC = () => {
     playTap();
     if (clueStep < totalClues) {
       setClueStep((prev) => prev + 1);
-      revealHiddenClue(hidden.id);
     }
   };
 
@@ -57,7 +56,6 @@ export const HiddenPage: React.FC = () => {
       addBadge("Hidden Seeker");
     }
     addXp(hidden.xp);
-    discoverHiddenGem(hidden.id);
   };
 
   return (

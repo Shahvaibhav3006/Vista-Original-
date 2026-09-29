@@ -1,8 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { Place, Quest } from "../data/cities";
 import { playLevelUp, playStamp, playSuccess, playTap, playUnlock } from "../utils/audio";
-import { useAuth } from "./AuthContext";
-import { api } from "../lib/api";
 
 export interface LevelInfo {
   name: string;
@@ -92,9 +90,6 @@ export interface GameState {
 
 export interface GameContextType extends GameState {
   level: LevelInfo;
-  isLoading: boolean;
-  isSyncing: boolean;
-  syncError: string | null;
   setDestination: (place: string, stateName: string) => void;
   visitPlace: (place: Place) => void;
   addXp: (amount: number) => void;
@@ -116,14 +111,10 @@ export interface GameContextType extends GameState {
   requestGps: () => Promise<boolean>;
   simulateLocation: (lat: number, lng: number, label?: string) => void;
   clearLocation: () => void;
-  redeemQrCode: (code: string) => void;
-  revealHiddenClue: (hiddenId: string) => void;
-  discoverHiddenGem: (hiddenId: string) => void;
 }
 
 const STORAGE_KEY = "vista_quest_state_v1";
 const LEGACY_STORAGE_KEY = "questtrail_state_v1";
-const MIGRATION_FLAG = "vista_migration_done_v1";
 
 const INITIAL_STATE: GameState = {
   user: { name: "Guest Explorer", avatar: "🧭", isGuest: true },
@@ -147,7 +138,7 @@ const INITIAL_STATE: GameState = {
   locationPermission: "prompt"
 };
 
-function getLocalState(): GameState {
+function getInitialState(): GameState {
   if (typeof window === "undefined") return INITIAL_STATE;
   try {
     const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
@@ -159,14 +150,6 @@ function getLocalState(): GameState {
     // fallback
   }
   return INITIAL_STATE;
-}
-
-function saveLocalState(state: GameState) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // storage error ignored
-  }
 }
 
 export function getCurrentFormattedTime(simTime?: string | null): string {
@@ -192,156 +175,19 @@ export function getNowTimeString(): string {
 const GameContext = createContext<GameContextType | null>(null);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user: authUser, loading: authLoading } = useAuth();
-  const [state, setState] = useState<GameState>(getLocalState);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const prevAuthUserId = useRef<string | null>(null);
-  const isAuthenticated = !!authUser;
+  const [state, setState] = useState<GameState>(getInitialState);
 
-  // Save to localStorage for guest mode (always, as a cache fallback)
   useEffect(() => {
-    saveLocalState(state);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // storage error ignored
+    }
   }, [state]);
 
   const update = useCallback((updater: (prev: GameState) => Partial<GameState>) => {
     setState((prev) => ({ ...prev, ...updater(prev) }));
   }, []);
-
-  // ──────────────────── BACKEND SYNC ON AUTH CHANGE ────────────────────
-  useEffect(() => {
-    if (authLoading) return;
-
-    const userId = authUser?.id ?? null;
-
-    // Avoid re-running for same user
-    if (userId === prevAuthUserId.current) return;
-    prevAuthUserId.current = userId;
-
-    if (!userId) {
-      // Logged out → revert to local state (but keep current in-memory state for continuity)
-      setState(prev => ({
-        ...prev,
-        user: { ...prev.user, isGuest: true }
-      }));
-      return;
-    }
-
-    // Logged in → fetch backend profile and merge
-    const loadBackendData = async () => {
-      setIsLoading(true);
-      setSyncError(null);
-      try {
-        const [profileData, passportData] = await Promise.allSettled([
-          api.getMe(),
-          api.getPassport(),
-        ]);
-
-        const profile: any = profileData.status === 'fulfilled' ? profileData.value : null;
-        const passport: any = passportData.status === 'fulfilled' ? passportData.value : null;
-
-        if (profile) {
-          setState(prev => {
-            const backendXp = profile.xp ?? 0;
-            const backendGreenXp = profile.green_xp ?? 0;
-            const badges = passport?.badges?.map((b: any) => b.badge_id) ?? prev.badges;
-            const stamps = passport?.stamps?.map((s: any) => s.stamp_id) ?? prev.stamps;
-            const visitedPlaces: Record<string, { timestamp: string }> = {};
-            if (passport?.visits) {
-              for (const v of passport.visits) {
-                visitedPlaces[v.place_id] = { timestamp: v.visited_at || new Date().toISOString() };
-              }
-            }
-
-            return {
-              ...prev,
-              user: {
-                name: profile.name || prev.user.name,
-                avatar: profile.avatar || prev.user.avatar,
-                isGuest: false,
-                city: profile.home_city,
-                bio: profile.bio,
-              },
-              xp: Math.max(backendXp, prev.xp),
-              greenXp: Math.max(backendGreenXp, prev.greenXp),
-              badges: [...new Set([...prev.badges, ...badges])],
-              stamps: [...new Set([...prev.stamps, ...stamps])],
-              visited: { ...prev.visited, ...visitedPlaces },
-            };
-          });
-
-          // One-time guest-to-account migration
-          await migrateGuestProgress(userId);
-        }
-      } catch (err: any) {
-        setSyncError(err.message || 'Failed to sync with backend');
-        console.error('Backend sync error:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadBackendData();
-  }, [authUser, authLoading]);
-
-  // ──────────────────── GUEST MIGRATION ────────────────────
-  const migrateGuestProgress = async (userId: string) => {
-    if (typeof window === 'undefined') return;
-    const flag = localStorage.getItem(MIGRATION_FLAG);
-    if (flag === userId) return; // Already migrated for this user
-
-    const localState = getLocalState();
-    const hasLocalProgress = localState.xp > 0 ||
-      Object.keys(localState.visited).length > 0 ||
-      Object.keys(localState.quests).length > 0;
-
-    if (!hasLocalProgress) {
-      localStorage.setItem(MIGRATION_FLAG, userId);
-      return;
-    }
-
-    try {
-      // Import visits
-      for (const placeId of Object.keys(localState.visited)) {
-        try {
-          await api.checkInPlace(placeId, 0, 0); // lat/lng 0 — backend will skip distance check in demo mode
-        } catch {
-          // Ignore duplicates or failures for individual items
-        }
-      }
-
-      // Import saved places
-      for (const sp of localState.savedPlaces) {
-        try {
-          await api.savePlace(sp.id);
-        } catch {
-          // ignore
-        }
-      }
-
-      localStorage.setItem(MIGRATION_FLAG, userId);
-    } catch (err) {
-      console.error('Migration error:', err);
-    }
-  };
-
-  // ──────────────────── HELPER: fire-and-forget backend call ────────────────────
-  const syncToBackend = useCallback(async (fn: () => Promise<any>) => {
-    if (!isAuthenticated) return;
-    setIsSyncing(true);
-    try {
-      await fn();
-      setSyncError(null);
-    } catch (err: any) {
-      setSyncError(err.message || 'Sync failed');
-      console.error('Backend sync:', err);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [isAuthenticated]);
-
-  // ──────────────────── ACTIONS ────────────────────
 
   const addXp = useCallback(
     (amount: number) => {
@@ -401,14 +247,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           xp: nextXp
         };
       });
-
-      // Backend sync
-      syncToBackend(async () => {
-        const loc = state.location;
-        await api.checkInPlace(place.id, loc?.lat ?? 0, loc?.lng ?? 0);
-      });
     },
-    [update, syncToBackend, state.location]
+    [update]
   );
 
   const completeQuestStep = useCallback(
@@ -426,13 +266,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           xp: prev.xp + xpReward
         };
       });
-
-      syncToBackend(async () => {
-        const stepId = `${questId}-step-${stepIndex}`;
-        await api.completeQuestStep(questId, stepId);
-      });
     },
-    [update, syncToBackend]
+    [update]
   );
 
   const requestGps = useCallback(async (): Promise<boolean> => {
@@ -516,12 +351,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           stamps
         };
       });
-
-      syncToBackend(async () => {
-        await api.completeQuest(quest.id);
-      });
     },
-    [update, syncToBackend]
+    [update]
   );
 
   const submitPhoto = useCallback(
@@ -531,12 +362,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         photos: { ...prev.photos, [placeId]: photoUrl },
         xp: prev.xp + xpGain
       }));
-
-      syncToBackend(async () => {
-        await api.uploadPhoto(placeId, photoUrl, xpGain);
-      });
     },
-    [update, syncToBackend]
+    [update]
   );
 
   const unlockSecret = useCallback(() => {
@@ -583,20 +410,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (place: { id: string; name: string; category: string }) => {
       playTap();
       update((prev) => {
-        const isAlreadySaved = prev.savedPlaces.some((p) => p.id === place.id);
-        if (isAlreadySaved) {
-          syncToBackend(() => api.removeSavedPlace(place.id));
+        if (prev.savedPlaces.some((p) => p.id === place.id)) {
           return {
             savedPlaces: prev.savedPlaces.filter((p) => p.id !== place.id)
           };
         }
-        syncToBackend(() => api.savePlace(place.id));
         return {
           savedPlaces: [...prev.savedPlaces, place]
         };
       });
     },
-    [update, syncToBackend]
+    [update]
   );
 
   const addBadge = useCallback(
@@ -650,44 +474,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       update((prev) => ({
         user: { ...prev.user, ...patch }
       }));
-
-      syncToBackend(async () => {
-        const backendPatch: any = {};
-        if (patch.name) backendPatch.name = patch.name;
-        if (patch.avatar) backendPatch.avatar = patch.avatar;
-        if (patch.bio) backendPatch.bio = patch.bio;
-        if (patch.city) backendPatch.home_city = patch.city;
-        await api.updateProfile(backendPatch);
-      });
     },
-    [update, syncToBackend]
-  );
-
-  const redeemQrCode = useCallback(
-    (code: string) => {
-      syncToBackend(async () => {
-        await api.redeemQr(code);
-      });
-    },
-    [syncToBackend]
-  );
-
-  const revealHiddenClue = useCallback(
-    (hiddenId: string) => {
-      syncToBackend(async () => {
-        await api.revealHiddenClue(hiddenId);
-      });
-    },
-    [syncToBackend]
-  );
-
-  const discoverHiddenGem = useCallback(
-    (hiddenId: string) => {
-      syncToBackend(async () => {
-        await api.discoverHiddenGem(hiddenId);
-      });
-    },
-    [syncToBackend]
+    [update]
   );
 
   const level = useMemo(() => calculateLevel(state.xp), [state.xp]);
@@ -696,9 +484,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     () => ({
       ...state,
       level,
-      isLoading,
-      isSyncing,
-      syncError,
       setDestination,
       visitPlace,
       addXp,
@@ -719,17 +504,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateProfile,
       requestGps,
       simulateLocation,
-      clearLocation,
-      redeemQrCode,
-      revealHiddenClue,
-      discoverHiddenGem
+      clearLocation
     }),
     [
       state,
       level,
-      isLoading,
-      isSyncing,
-      syncError,
       setDestination,
       visitPlace,
       addXp,
@@ -750,10 +529,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateProfile,
       requestGps,
       simulateLocation,
-      clearLocation,
-      redeemQrCode,
-      revealHiddenClue,
-      discoverHiddenGem
+      clearLocation
     ]
   );
 

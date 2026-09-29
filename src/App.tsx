@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { GameProvider } from "./context/GameContext";
-import { AuthProvider } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
 import { Welcome } from "./pages/Welcome";
@@ -31,9 +30,8 @@ function ScrollToTop() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <GameProvider>
-        <BrowserRouter>
+    <GameProvider>
+      <BrowserRouter>
         <ScrollToTop />
         <Routes>
           <Route element={<Layout />}>
@@ -57,6 +55,5 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </GameProvider>
-    </AuthProvider>
   );
 }

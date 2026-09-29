@@ -11,12 +11,9 @@ import {
   User,
   Swords,
   Layers,
-  Flag,
-  LogIn
+  Flag
 } from "lucide-react";
 import { useGame } from "../context/GameContext";
-import { useAuth } from "../context/AuthContext";
-import { AuthModal } from "./AuthModal";
 import { getStateTheme, getThemePatternStyle } from "../data/themes";
 import { isSoundEnabled, toggleSound, playTap } from "../utils/audio";
 import { DemoDrawer } from "./DemoDrawer";
@@ -25,9 +22,7 @@ export const Layout: React.FC = () => {
   const { state, destination, level, xp } = useGame();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [demoOpen, setDemoOpen] = useState(false);
-  const [authOpen, setAuthOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(isSoundEnabled);
 
   const theme = getStateTheme(state || "Gujarat");
@@ -118,20 +113,6 @@ export const Layout: React.FC = () => {
               {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
             </button>
 
-            {/* Auth Button */}
-            {!user ? (
-              <button
-                onClick={() => {
-                  playTap();
-                  setAuthOpen(true);
-                }}
-                className="qt-tap flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-sm hover:brightness-105 shrink-0 bg-zinc-800"
-              >
-                <LogIn size={13} />
-                <span className="hidden sm:inline">Sign In</span>
-              </button>
-            ) : null}
-
             {/* SIH Demo Mode Trigger Button */}
             <button
               onClick={() => {
@@ -182,9 +163,6 @@ export const Layout: React.FC = () => {
 
       {/* Demo Mode Drawer */}
       <DemoDrawer open={demoOpen} onOpenChange={setDemoOpen} />
-
-      {/* Auth Modal */}
-      <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
     </div>
   );
 };
